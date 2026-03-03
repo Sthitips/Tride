@@ -1,0 +1,8 @@
+@import "tailwindcss";
+
+.text{
+  font-family: "Climate Crisis", sans-serif;
+}
+body{
+  font-family: "Vend Sans", sans-serif;
+}
