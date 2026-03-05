@@ -1,13 +1,18 @@
-const express = require("express");
-const cors = require("cors");
+import express, { json } from "express";
+import cors from "cors";
+import dotenv from "dotenv";
+import connectDB from "./config/db.js";
+import planRoutes from "./routes/planRoutes.js";
 
-const planRoutes = require("./routes/planRoutes")
+dotenv.config();
+connectDB();
+
 
 const app = express();
 const PORT = 5000;
 
 app.use(cors());
-app.use(express.json());
+app.use(json());
 
 app.use("/api", planRoutes);
 
