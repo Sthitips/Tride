@@ -1,6 +1,8 @@
 import Itinerary from "../models/Itinerary.js";
+import { generateTravelPlan } from "../services/aiService.js";
 
 export const generatePlan = async (req, res) => {
+    console.log("request recieved:", req.body);
     try {
 
         const { destination, days, budget } = req.body;
@@ -43,26 +45,50 @@ export const generatePlan = async (req, res) => {
         }
 
         // Generate itinerary
-        const itinerary = [];
+        console.log("Calling AI service...");
+        const aidata = await generateTravelPlan(destination, days, budget);
+        console.log("AI response received:", aidata);
 
-        for (let i = 1; i <= days; i++) {
-            if (i === days) {
-                itinerary.push(
-                    `Day ${i}: Shopping and departure from ${destination}`
-                );
-            } else {
-                itinerary.push(
-                    `Day ${i}: Explore attractions and local food in ${destination}`
-                );
-            }
+        // --- normalize cafes ---
+        if (Array.isArray(aidata.cafes)) {
+            aidata.cafes = aidata.cafes.map((cafe) => {
+                if (typeof cafe === "string") {
+                    return {
+                        name: cafe,
+                        location: "",
+                        specialty: "",
+                        price_range: ""
+                    };
+                }
+                return cafe;
+            });
         }
+
+        // --- normalize itinerary ---
+        if (Array.isArray(aidata.itinerary)) {
+            aidata.itinerary = aidata.itinerary.map((dayObj, index) => {
+                let dayNumber = dayObj.day;
+
+                if (typeof dayNumber === "string") {
+                    const match = dayNumber.match(/\d+/);
+                    dayNumber = match ? Number(match[0]) : index + 1;
+                }
+
+                return {
+                    day: dayNumber,
+                    theme: dayObj.theme || "",
+                    activities: dayObj.activities || []
+                };
+            });
+        }
+
 
         // Save to MongoDB
         const savedPlan = new Itinerary({
             destination,
             days,
             budget,
-            itinerary
+            ...aidata
         });
 
         await savedPlan.save();
@@ -71,8 +97,22 @@ export const generatePlan = async (req, res) => {
         res.json(savedPlan);
 
     } catch (error) {
+        console.error("PLAN GENERATION ERROR:", error);
+
         res.status(500).json({
-            error: "Server error"
+            error: error.message
+        });
+
+    }
+};
+
+export const getItineraries = async (req, res) => {
+    try {
+        const itineraries = await Itinerary.find().sort({ createdAt: -1 });
+        res.json(itineraries);
+    } catch (error) {
+        res.status(500).json({
+            error: "failed to fetch itineraries"
         });
     }
 };
